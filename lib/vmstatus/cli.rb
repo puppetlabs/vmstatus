@@ -17,6 +17,7 @@ class Vmstatus::CLI
       o.string '--host', 'vmpooler redis hostname', default: 'localhost'
       o.bool '-v', '--verbose', 'verbose mode'
       o.bool '-l', '--long', 'show long form of the job url'
+      o.string '-s', '--sort', "sort by 'host', 'checkout', 'ttl', 'user', 'job'", default: 'host'
       o.on '--version', 'print the version' do
         puts Vmstatus::VERSION
         exit
@@ -37,7 +38,20 @@ class Vmstatus::CLI
     results.state.each_pair do |name, vms|
       puts "#{name.upcase}".ljust(16, ' ') + " (#{vms.count})".rjust(69, '-')
       if opts.verbose?
-        vms.sort_by { |vm| vm.hostname }.each do |vm|
+        vms.sort_by do |vm|
+          case opts[:sort]
+          when 'checkout'
+            vm.checkout
+          when 'job'
+            vm.job_name
+          when 'ttl'
+            vm.ttl
+          when 'user'
+            vm.user
+          else
+            vm.hostname
+          end
+        end.each do |vm|
           color = if vm.ttl <= 0
                     :red
                   elsif vm.url.nil?
@@ -49,11 +63,7 @@ class Vmstatus::CLI
           checkout = vm.checkout || (' ' * 25)
           left = ("#{vm.hostname} '#{checkout}' " + ("%10.2fh" % vm.ttl) + " #{vm.user}").ljust(20, ' ')
 
-          if opts.long?
-            right = vm.url
-          else
-            right = vm.url.nil? ? '' : vm.url.match(/.*\/job\/([^\/]+)/)[1]
-          end
+          right = opts.long? ? vm.url : vm.job_name
 
           puts "#{left} #{right}".colorize(color)
         end

@@ -43,6 +43,16 @@ class Vmstatus::VM
     @status
   end
 
+  def job_name
+    if url.nil?
+      ''
+    elsif data = url.match(/.*\/job\/([^\/]+)/)
+      data[1]
+    else
+      url
+    end
+  end
+
   def to_s
     @hostname
   end
