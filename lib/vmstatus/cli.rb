@@ -14,11 +14,15 @@ class Vmstatus::CLI
 
   def execute
     opts = Slop.parse(@argv) do |o|
-      o.string '-h', '--host', 'vmpooler redis hostname', default: 'localhost'
+      o.string '--host', 'vmpooler redis hostname', default: 'localhost'
       o.bool '-v', '--verbose', 'verbose mode'
       o.bool '-l', '--long', 'show long form of the job url'
       o.on '--version', 'print the version' do
         puts Vmstatus::VERSION
+        exit
+      end
+      o.on '-h', '--help' do
+        puts o
         exit
       end
     end
