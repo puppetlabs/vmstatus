@@ -33,7 +33,7 @@ class Vmstatus::CLI
     results.state.each_pair do |name, vms|
       puts "#{name.upcase}".ljust(16, ' ') + " (#{vms.count})".rjust(69, '-')
       if opts.verbose?
-        vms.sort_by { |vm| vm.name }.each do |vm|
+        vms.sort_by { |vm| vm.hostname }.each do |vm|
           color = if vm.ttl <= 0
                     :red
                   elsif vm.url.nil?
@@ -43,7 +43,7 @@ class Vmstatus::CLI
                   end
 
           checkout = vm.checkout || (' ' * 25)
-          left = ("#{vm.name} '#{checkout}' " + ("%10.2fh" % vm.ttl) + " #{vm.user}").ljust(20, ' ')
+          left = ("#{vm.hostname} '#{checkout}' " + ("%10.2fh" % vm.ttl) + " #{vm.user}").ljust(20, ' ')
 
           if opts.long?
             right = vm.url

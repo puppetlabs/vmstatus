@@ -17,13 +17,15 @@ class Vmstatus::Processor
     futures = []
 
     # estimate the total task count (2 tasks per vm)
-    @observer.on_total(2 * running_count(redis))
+    vm_count = running_count(redis)
+    puts "Processing #{vm_count} VMs"
+    @observer.on_total(2 * vm_count)
     @observer.on_start
 
     redis.keys('vmpooler__running__*').each do |key|
-      redis.smembers(key).each do |name|
+      redis.smembers(key).each do |hostname|
         type = key.sub(/vmpooler__running__/, '')
-        url, checkout, lifetime, user = redis.hmget("vmpooler__vm__#{name}", 'tag:jenkins_build_url', 'checkout', 'lifetime', 'token:user')
+        url, checkout, lifetime, user = redis.hmget("vmpooler__vm__#{hostname}", 'tag:jenkins_build_url', 'checkout', 'lifetime', 'token:user')
 
         options = {
           :type => type,
@@ -32,11 +34,11 @@ class Vmstatus::Processor
           :lifetime => lifetime,
           :user => user
         }
-        vm = Vmstatus::VM.new("#{name}.delivery.puppetlabs.net", options)
+        vm = Vmstatus::VM.new(hostname, options)
         vms.add(vm)
 
         future = Concurrent::Future.execute do
-          task = Vmstatus::PingTask.new(vm.name, 22)
+          task = Vmstatus::PingTask.new(vm.hostname, 22)
           task.run
         end
         future.add_observer(vm, :running=)

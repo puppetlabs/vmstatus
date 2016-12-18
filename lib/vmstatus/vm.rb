@@ -2,10 +2,10 @@ require 'date'
 require 'time'
 
 class Vmstatus::VM
-  attr_reader :name, :url, :type, :user, :checkout, :ttl
+  attr_reader :hostname, :url, :type, :user, :checkout, :ttl
 
-  def initialize(name, options)
-    @name = name
+  def initialize(hostname, options)
+    @hostname = hostname
     @type = options[:type]
     @url = options[:url]
     @checkout = options[:checkout]
@@ -22,7 +22,7 @@ class Vmstatus::VM
     if value
       @running = value
     else
-      #puts "Failed to connect to #{@name}"
+      #puts "Failed to connect to #{@hostname}"
     end
   end
 
@@ -44,6 +44,6 @@ class Vmstatus::VM
   end
 
   def to_s
-    @name
+    @hostname
   end
 end
