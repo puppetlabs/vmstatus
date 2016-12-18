@@ -28,6 +28,8 @@ class Vmstatus::PingTask
         rescue Errno::EISCONN
           # connected
         end
+      else
+        raise Errno::ETIMEDOUT.new
       end
     ensure
       socket.close
