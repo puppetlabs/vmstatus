@@ -8,12 +8,13 @@ class Vmstatus::VM
     @hostname = hostname
     @type = options[:type]
     @url = options[:url]
-    @checkout = options[:checkout]
-    if @checkout && options[:lifetime]
-      expiration = DateTime.parse(@checkout) + (Integer(options[:lifetime]) / 24.0)
-      @ttl = (expiration.to_time - Time.now) / 60.0 / 60.0 # hours
-    else
-      @ttl = -1
+    @ttl = -1
+    if options[:checkout]
+      @checkout = DateTime.parse(options[:checkout])
+      if options[:lifetime]
+        expiration = @checkout + (Integer(options[:lifetime]) / 24.0)
+        @ttl = (expiration.to_time - Time.now) / 60.0 / 60.0 # hours
+      end
     end
     @user = options[:user] || 'unknown'
   end

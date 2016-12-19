@@ -61,7 +61,7 @@ class Vmstatus::CLI
                   end
 
           checkout = vm.checkout || (' ' * 25)
-          left = ("#{vm.hostname} '#{checkout}' " + ("%10.2fh" % vm.ttl) + " #{vm.user}").ljust(20, ' ')
+          left = ("#{vm.hostname} #{checkout} " + ("%10.2fh" % vm.ttl) + " #{vm.user}").ljust(20, ' ')
 
           right = opts.long? ? vm.url : vm.job_name
 
