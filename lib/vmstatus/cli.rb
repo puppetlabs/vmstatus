@@ -2,6 +2,7 @@ require 'redis'
 require 'ruby-progressbar'
 require 'slop'
 require 'colorize'
+require 'statsd'
 
 require 'vmstatus/processor'
 require 'vmstatus/version'
@@ -18,6 +19,7 @@ class Vmstatus::CLI
       o.bool '-v', '--verbose', 'verbose mode'
       o.bool '-l', '--long', 'show long form of the job url'
       o.string '-s', '--sort', "sort by 'host', 'checkout', 'ttl', 'user', 'job'", default: 'host'
+      o.string '-p', '--publish', 'publish stats <host:port>'
       o.on '--version', 'print the version' do
         puts Vmstatus::VERSION
         exit
@@ -69,6 +71,21 @@ class Vmstatus::CLI
         end
       end
       puts ""
+
+
+      if opts[:publish]
+        begin
+          host, port = opts[:publish].split(':')[2]
+          #statsd = Statsd.new('statsd.ops.puppetlabs.net', 8125)
+          statsd = Statsd.new(host, port)
+          results.state.each_pair do |name, vms|
+            statsd.gauge("vm-status.#{name}", vms.count)
+          end
+        rescue ArgumentError => e
+          puts "Invalid publish host:port #{opts[:publish]}: #{e.message}"
+          exit 1
+        end
+      end
     end
   end
 
