@@ -78,9 +78,11 @@ class Vmstatus::CLI
           host, port = opts[:publish].split(':')[2]
           #statsd = Statsd.new('statsd.ops.puppetlabs.net', 8125)
           statsd = Statsd.new(host, port)
+          batch = Statsd::Batch.new(statsd)
           results.state.each_pair do |name, vms|
-            statsd.gauge("vm-status.#{name}", vms.count)
+            batch.gauge("vmstatus.#{name}", vms.count)
           end
+          batch.flush
         rescue ArgumentError => e
           puts "Invalid publish host:port #{opts[:publish]}: #{e.message}"
           exit 1
