@@ -76,8 +76,7 @@ class Vmstatus::CLI
     if opts[:publish]
       begin
         host, port = opts[:publish].split(':')
-        statsd = Statsd.new(host, port, :tcp)
-        #statsd = Statsd.new('statsd.ops.puppetlabs.net', 8125)
+        statsd = Statsd.new(host, port)
         results.state.each_pair do |name, vms|
           statsd.gauge("vmstatus.#{name}", vms.count)
         end
