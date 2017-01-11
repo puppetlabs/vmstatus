@@ -38,10 +38,16 @@ class Vmstatus::JenkinsTask
       else
         # not every job has a lastBuild
         last_build_status = JSON.parse(RestClient.get(build_url, params: {tree: BUILD_PARAMS.join(',')}, :user_agent => USER_AGENT))
-        if last_build_status['result'] == 'SUCCESS'
+        result = last_build_status['result']
+        case result
+        when 'SUCCESS'
           'passed'
-        else
+        when 'ABORTED'
+          'aborted'
+        when 'UNSTABLE', 'NOT_BUILT', 'FAILURE'
           'failed'
+        else
+          raise ArgumentError.new("Unknown jenkins build result: #{result}")
         end
       end
     else
