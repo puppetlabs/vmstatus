@@ -42,6 +42,7 @@ class Vmstatus::Summary
     puts format_line(results.state[:failed], 'failed', :red)
     puts format_line(results.state[:aborted], 'aborted', :red)
     puts format_line(results.state[:disabled], 'disabled', :red)
+    puts format_line(results.state[:deleted], 'deleted', :red)
     puts ""
 
     puts "Number of VMs not associated with any Jenkins job"

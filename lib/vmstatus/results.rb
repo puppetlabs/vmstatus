@@ -12,6 +12,7 @@ class Vmstatus::Results
       :zombie => [],
       :failed => [],
       :aborted => [],
+      :deleted => [],
       :unknown_running => [],
       :unknown_dead => [],
     }
@@ -47,6 +48,12 @@ class Vmstatus::Results
       when 'aborted'
         if vm.running?
           state[:aborted] << vm
+        else
+          state[:zombie] << vm
+        end
+      when 'deleted'
+        if vm.running?
+          state[:deleted] << vm
         else
           state[:zombie] << vm
         end
