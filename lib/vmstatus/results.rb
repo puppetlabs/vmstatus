@@ -17,7 +17,7 @@ class Vmstatus::Results
     }
 
     vms.each do |vm|
-      case vm.status
+      case vm.job_status
       when 'queued'
         if vm.running?
           state[:ready] << vm

@@ -31,17 +31,17 @@ class Vmstatus::VM
     @running
   end
 
-  def status=(time, value, reason)
+  def job_status=(time, value, reason)
     if value
-      @status = value
+      @job_status = value
     else
-      #puts "Failed to get status from #{@url}: #{reason}"
-      @status = 'unknown'
+      #puts "Failed to get job status from #{@url}: #{reason}"
+      @job_status = 'unknown'
     end
   end
 
-  def status
-    @status
+  def job_status
+    @job_status
   end
 
   def job_name

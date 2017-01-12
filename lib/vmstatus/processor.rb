@@ -49,7 +49,7 @@ class Vmstatus::Processor
           task = Vmstatus::JenkinsTask.new(vm.url)
           task.run
         end
-        future.add_observer(vm, :status=)
+        future.add_observer(vm, :job_status=)
         future.add_observer(self, :on_task_complete)
         futures << future
       end
