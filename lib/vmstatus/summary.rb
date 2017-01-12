@@ -33,8 +33,8 @@ class Vmstatus::Summary
   def print(results)
     puts "Number of VMs associated with running Jenkins jobs"
     puts format_line(results.state[:queued], 'queued')
+    puts format_line(results.state[:ready], 'ready')
     puts format_line(results.state[:ok], 'building')
-    # "ready"?
     puts ""
 
     puts "Number of VMs associated with completed Jenkins jobs"
