@@ -1,83 +1,66 @@
-require 'set'
 require 'concurrent'
+require 'set'
 
 require 'vmstatus/vm'
+require 'vmstatus/inventory'
 require 'vmstatus/ping_task'
 require 'vmstatus/jenkins_task'
+require 'vmstatus/vmpooler_task'
 require 'vmstatus/results'
 
 class Vmstatus::Processor
-  def initialize(observer)
+  def initialize(vsphere, vmpoolers, observer)
+    @vsphere = vsphere
+    @vmpoolers = vmpoolers
     @observer = observer
-    @completed_tasks = Concurrent::AtomicFixnum.new
   end
 
-  def process(redis)
-    vms = Set.new
-    futures = []
+  def process
+    futures = Array.new
+
+    inventory = @vsphere.inventory
 
     # estimate the total task count (2 tasks per vm)
-    vm_count = running_count(redis)
-    puts "Processing #{vm_count} VMs"
-    @observer.on_total(2 * vm_count)
-    @observer.on_start
+    puts "Processing #{inventory.vms.count} VMs, ignoring #{inventory.template_count} templates"
+    @observer.on_total(inventory.vms.count * (2 + @vmpoolers.count))
 
-    redis.keys('vmpooler__running__*').each do |key|
-      redis.smembers(key).each do |hostname|
-        type = key.sub(/vmpooler__running__/, '')
-        url, checkout, lifetime, user = redis.hmget("vmpooler__vm__#{hostname}", 'tag:jenkins_build_url', 'checkout', 'lifetime', 'token:user')
+    # lookup vmpooler metadata first, since the jenkins task relies on it
+    @vmpoolers.each do |vmpooler|
+      future = Concurrent::Future.execute do
+        task = Vmstatus::VmpoolerTask.new(vmpooler)
+        task.run(inventory.vms) do |vm|
+          @observer.on_increment
 
-        options = {
-          :type => type,
-          :url => url,
-          :checkout => checkout,
-          :lifetime => lifetime,
-          :user => user
-        }
-        vm = Vmstatus::VM.new(hostname, options)
-        vms.add(vm)
+          if vm
+            future = Concurrent::Future.new do
+              task = Vmstatus::PingTask.new(vm.hostname, 22)
+              task.run
+            end
+            future.add_observer(vm, :running=)
+            future.add_observer(@observer, :on_increment)
+            futures << future
+            future.execute
 
-        future = Concurrent::Future.execute do
-          task = Vmstatus::PingTask.new(vm.hostname, 22)
-          task.run
+            future = Concurrent::Future.new do
+              task = Vmstatus::JenkinsTask.new(vm)
+              task.run
+            end
+            future.add_observer(vm, :job_status=)
+            future.add_observer(@observer, :on_increment)
+            futures << future
+            future.execute
+          end
         end
-        future.add_observer(vm, :running=)
-        future.add_observer(self, :on_task_complete)
-        futures << future
-
-        future = Concurrent::Future.execute do
-          task = Vmstatus::JenkinsTask.new(vm.url)
-          task.run
-        end
-        future.add_observer(vm, :job_status=)
-        future.add_observer(self, :on_task_complete)
-        futures << future
       end
+      futures << future
     end
-
-    # update total now that we have an exact count
-    @observer.on_total(futures.count)
 
     futures.each do |future|
       future.wait
     end
 
-    @observer.on_finish
-
-    Vmstatus::Results.new(vms)
+    Vmstatus::Results.new(inventory.vms.values)
   ensure
     futures.each { |future| future.delete_observers }
-  end
-
-  def on_task_complete(time, value, reason)
-    count = @completed_tasks.increment
-
-    @observer.on_progress(count)
-  end
-
-  def running_count(redis)
-    redis.keys('vmpooler__running__*').inject(0) do |sum, key|
-      sum + redis.scard(key)
-    end
   end
 end

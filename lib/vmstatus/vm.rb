@@ -2,29 +2,25 @@ require 'date'
 require 'time'
 
 class Vmstatus::VM
-  attr_reader :hostname, :url, :type, :user, :checkout, :ttl
+  attr_reader :hostname, :uuid, :url, :type, :user, :checkout, :ttl
 
-  def initialize(hostname, options)
+  def initialize(hostname, uuid, on)
     @hostname = hostname
-    @type = options[:type]
-    @url = options[:url]
-    @ttl = -1
-    if options[:checkout]
-      @checkout = DateTime.parse(options[:checkout])
-      if options[:lifetime]
-        expiration = @checkout + (Integer(options[:lifetime]) / 24.0)
-        @ttl = (expiration.to_time - Time.now) / 60.0 / 60.0 # hours
-      end
-    end
-    @user = options[:user] || 'unknown'
+    @uuid = uuid
+    @on = on
+    @job_status = 'orphaned' # assume vm is not referenced by any vmpooler
   end
 
   def running=(time, value, reason)
     if value
       @running = value
     else
-      #puts "Failed to connect to #{@hostname}"
+      #$stderr.puts "Failed to connect to #{@hostname}: #{reason} (#{reason.class})"
     end
+  end
+
+  def on?
+    @on
   end
 
   def running?
@@ -35,8 +31,7 @@ class Vmstatus::VM
     if value
       @job_status = value
     else
-      #puts "Failed to get job status from #{@url}: #{reason}"
-      @job_status = 'unknown'
+      #$stderr.puts "Failed to get job status for #{@hostname}: #{reason}"
     end
   end
 
@@ -52,6 +47,19 @@ class Vmstatus::VM
     else
       url
     end
+  end
+
+  def vmpooler_status=(options)
+    @type = options[:type]
+    @url = options[:url]
+    if options[:checkout]
+      @checkout = DateTime.parse(options[:checkout])
+      if options[:lifetime]
+        expiration = @checkout + (Integer(options[:lifetime]) / 24.0)
+        @ttl = (expiration.to_time - Time.now) / 60.0 / 60.0 # hours
+      end
+    end
+    @user = options[:user] || ''
   end
 
   def to_s

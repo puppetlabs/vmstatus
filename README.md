@@ -16,8 +16,9 @@ vmstatus correlates virtual machines in VMware vSphere against vmpooler and Jenk
 | `disabled` | VM is checked out and is associated with a disabled Jenkins job |
 | `deleted` | VM is checked out and is associated with a deleted Jenkins job |
 | `orphaned` | VM is running but there is no record in vmpooler |
+| `template` | VM template from which VMs of that type are cloned |
 
-The `queued` and `building` states indicate useful work, since the VM is in vSphere and is associated with a currently running Jenkins job. All other states are unuseful from a production CI perspective.
+The `queued` and `building` states mean the VM is in vSphere and is associated with a currently running Jenkins job, so it is doing useful work. All other states are unuseful from a production CI perspective.
 
 ## Requirements
 
@@ -36,11 +37,26 @@ Depends on the following gems:
 
 ## Usage
 
+### Global Options
+
+All of the commands support the following options:
+
+| Option | Description |
+|--------|-------------|
+| `--host` | The vSphere hostname |
+| `--user` | Your vSphere username |
+| `--password` | Your vSphere password (or specify via `ENV['LDAP_PASSWORD']`) |
+| `--datacenter` | The vSphere datacenter |
+| `--cluster` | The vSphere cluster |
+| `--vmpooler` | A comma-separated list of vmpooler redis hostnames to reconcile VMs against |
+
 ### Summary
+
+Provide a summary of VMs in each state:
 
 ```
 $ bundle exec vmstatus summary --host vcenter --user user@foo.com
-Querying vsphere 'vcenter' for VMs in cluster 'acceptance1' in datacenter 'dc1'
+Querying vsphere 'vcenter' for VMs in cluster 'cluster1' in datacenter 'dc1'
 Processing 1657 VMs, ignoring 243 templates
 Time: 00:01:00 ====================================================================================== 100% Progress
 
@@ -67,3 +83,33 @@ Efficiency 5.4%, 90 out of 1657 VMs are doing useful work
 ```
 
 ### List
+
+List the status of each VM:
+
+```
+$ bundle exec vmstatus list --host vcenter --user user@foo.com
+Querying vsphere 'vcenter' for VMs in cluster 'cluster1' in datacenter dc1'
+Processing 1670 VMs, ignoring 243 templates
+Time: 00:06:41 ====================================================================================== 100% Progress
+
+Hostname        Status    Running  Checkout Time                     TTL User                Jenkins Job
+afzowkwedv1m39e aborted    on/*    2017-01-24T12:53:06-08:00       7.11h jenkins             enterprise_pe-orchestrator_integration-system_smoke-flanders
+bv3qyq0f9bkphb2 adhoc      on/*    2017-01-24T08:05:14-08:00       2.31h kermit
+a21vj6t37jxqq4t building   on/*    2017-01-24T17:35:46-08:00      11.82h jenkins             enterprise_pe-acceptance-tests_integration-system_pe_smoke-split_2017.2.x
+bwbgwxs4qdss18w failed     on/*    2017-01-24T09:26:39-08:00       3.67h jenkins             enterprise_puppet-code_intn-van-sys_flanders
+dpisyffpvy3d9if orphaned   on/*                                    never
+bnzks2bgm1sb8gn ready      on/*                                    never
+yt42hvi9qvzfs6i ready      on/!                                    never
+```
+
+This displays each VM sorted by hostname along with its status, running state, checkout time, vmpooler TTL, user the VM is checked out to, and the Jenkins Job the VM is associated with.
+
+Vmstatus reports on the running state of the VM as reported by vSphere, e.g. "on". The "*" means the VM's hostname is resolvable and we can make a TCP connection to port 22. An "!" means we failed to connect, even though the VM is running according to vSphere. That can be due to transient network errors, DNS failures, the VM failed to respond within a specified timeout, the VM is unresponsive, etc.
+
+#### long
+
+The `-l` or `--long` option will print the complete Jenkins job URL, as opposed to the job name.
+
+#### sort
+
+The `-s` or `--sort` option allows you sort by different fields. For example, to see all VMs associated with a job use `--sort job`.
