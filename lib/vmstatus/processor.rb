@@ -32,6 +32,8 @@ class Vmstatus::Processor
           @observer.on_increment
 
           if vm
+            vm.vmpooler = vmpooler
+
             future = Concurrent::Future.new do
               task = Vmstatus::PingTask.new(vm.hostname, 22)
               task.run

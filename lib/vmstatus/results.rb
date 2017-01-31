@@ -1,5 +1,5 @@
 class Vmstatus::Results
-  include Enumerable
+  attr_reader :state
 
   def initialize(vms)
     @vms = vms

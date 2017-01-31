@@ -38,9 +38,18 @@ class Vmstatus::Summary
       begin
         host, port = @opts[:publish].split(':')
         statsd = Statsd.new(host, port)
-        results.state.each_pair do |name, vms|
-          statsd.gauge("vmstatus.#{name}", vms.count)
-        end
+        statsd.namespace = "vmstatus"
+
+#        statsd.batch do |batch|
+          results.state.each_pair do |name, vms|
+            vmpooler2vms = vms.group_by {|vm| vm.vmpooler }
+
+            vmpooler2vms.each_pair do |vmpooler, vs|
+              statsd.gauge("#{vmpooler}.#{name}", vs.count)
+            end
+
+            statsd.gauge("all.#{name}", vms.count)
+          end
       rescue ArgumentError => e
         raise ArgumentError.new("Invalid publish host:port #{@opts[:publish]}: #{e.message}")
       end

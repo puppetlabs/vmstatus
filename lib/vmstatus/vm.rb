@@ -4,6 +4,8 @@ require 'time'
 class Vmstatus::VM
   attr_reader :hostname, :uuid, :url, :type, :user, :checkout, :ttl
 
+  attr_accessor :vmpooler
+
   def initialize(hostname, uuid, on)
     @hostname = hostname
     @uuid = uuid
