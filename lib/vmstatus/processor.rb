@@ -2,7 +2,6 @@ require 'concurrent'
 require 'set'
 
 require 'vmstatus/vm'
-require 'vmstatus/inventory'
 require 'vmstatus/ping_task'
 require 'vmstatus/jenkins_task'
 require 'vmstatus/vmpooler_task'
@@ -13,56 +12,88 @@ class Vmstatus::Processor
     @vsphere = vsphere
     @vmpoolers = vmpoolers
     @observer = observer
+    @executor = Concurrent::FixedThreadPool.new(Concurrent.processor_count * 2)
+    @vms = Concurrent::Map.new
   end
 
   def process
-    futures = Array.new
-
-    inventory = @vsphere.inventory
-
-    # estimate the total task count (2 tasks per vm)
-    puts "Processing #{inventory.vms.count} VMs, ignoring #{inventory.template_count} templates"
-    @observer.on_total(inventory.vms.count * (2 + @vmpoolers.count))
-
-    # lookup vmpooler metadata first, since the jenkins task relies on it
-    @vmpoolers.each do |vmpooler|
-      future = Concurrent::Future.execute do
-        task = Vmstatus::VmpoolerTask.new(vmpooler)
-        task.run(inventory.vms) do |vm|
-          @observer.on_increment
-
-          if vm
-            vm.vmpooler = vmpooler
-
-            future = Concurrent::Future.new do
-              task = Vmstatus::PingTask.new(vm.hostname, 22)
-              task.run
-            end
-            future.add_observer(vm, :running=)
-            future.add_observer(@observer, :on_increment)
-            futures << future
-            future.execute
-
-            future = Concurrent::Future.new do
-              task = Vmstatus::JenkinsTask.new(vm)
-              task.run
-            end
-            future.add_observer(vm, :job_status=)
-            future.add_observer(@observer, :on_increment)
-            futures << future
-            future.execute
+    with_futures do |futures|
+      # async collect vsphere inventory
+      future = Concurrent::Future.new(:executor => @executor) do
+        # REMIND change to: Vmstatus::VsphereTask.new(opts).run
+        @vsphere.run do |hostname, vsphere_status|
+          @vms.compute(hostname) do |stored_value|
+            vm = stored_value || Vmstatus::VM.new(hostname)
+            vm.vsphere_status = vsphere_status
+            vm
           end
         end
       end
+      future.add_observer(@observer, :on_increment)
       futures << future
+      future.execute
+
+      # async collect vmpooler(s) inventory
+      @vmpoolers.each do |vmpooler|
+        future = Concurrent::Future.new(:executor => @executor) do
+          task = Vmstatus::VmpoolerTask.new(vmpooler)
+          task.run do |hostname, vmpooler_status|
+            @vms.compute(hostname) do |stored_value|
+              vm = stored_value || Vmstatus::VM.new(hostname)
+              vm.vmpooler_status = vmpooler_status
+              vm
+            end
+          end
+        end
+        future.add_observer(@observer, :on_increment)
+        futures << future
+        future.execute
+      end
     end
 
-    futures.each do |future|
-      future.wait
+    @observer.on_total(4 * @vms.size)
+
+    with_futures do |futures|
+      # async ping all hosts
+      @vms.each_pair do |hostname, vm|
+        future = Concurrent::Future.new(:executor => @executor) do
+          task = Vmstatus::PingTask.new(hostname, 22)
+          task.run
+        end
+        future.add_observer(vm, :running=)
+        future.add_observer(@observer, :on_increment)
+        futures << future
+        future.execute
+      end
+
+      # async lookup jenkins info
+      @vms.each_pair do |hostname, vm|
+        if vm.url
+          future = Concurrent::Future.new(:executor => @executor) do
+            task = Vmstatus::JenkinsTask.new(vm)
+            task.run
+          end
+          future.add_observer(vm, :job_status=)
+          future.add_observer(@observer, :on_increment)
+          futures << future
+          future.execute
+        end
+      end
     end
 
-    Vmstatus::Results.new(inventory.vms.values)
-  ensure
-    futures.each { |future| future.delete_observers }
+    Vmstatus::Results.new(@vms.values)
+  end
+
+  def with_futures(&block)
+    futures = Concurrent::Array.new
+    begin
+      yield futures
+
+      futures.to_a.each do |future|
+        future.wait
+      end
+    ensure
+      futures.each { |future| future.delete_observers }
+    end
   end
 end

@@ -12,54 +12,46 @@ class Vmstatus::JenkinsTask
   end
 
   def run
-    if @vm.checkout.nil?
-      # not quite right... the vm needs to not have been checked out and it needs
-      # to be in a ready pool somewhere.
-      'ready'
-    elsif @vm.url =~ /https?:\/\/jenkins.*/
-      # hack since cinext tags only recently included the build number
-      if @vm.url =~ /\/\d+\/$/
-        job_url = @vm.url.sub(/\d+\/$/, '') + "api/json"
-        build_url = @vm.url + "api/json"
-      else
-        job_url = @vm.url + "api/json"
-        build_url = "#{@vm.url}lastBuild/api/json"
-      end
-
-      #puts "job_url #{job_url}"
-      #puts "build_url #{build_url}"
-
-      begin
-        job_status = JSON.parse(RestClient.get(job_url, params: {tree: JOB_PARAMS.join(',')}, :user_agent => USER_AGENT))
-
-        if job_status['inQueue']
-          'queued'
-        elsif !job_status['buildable']
-          'disabled'
-        elsif job_status['color'] =~ /anime/
-          'building'
-        elsif job_status['color'] == 'notbuilt'
-          'failed' # never run before
-        else
-          # not every job has a lastBuild
-          build_status = JSON.parse(RestClient.get(build_url, params: {tree: BUILD_PARAMS.join(',')}, :user_agent => USER_AGENT))
-          result = build_status['result']
-          case result
-          when 'SUCCESS'
-            'passed'
-          when 'ABORTED'
-            'aborted'
-          when 'UNSTABLE', 'NOT_BUILT', 'FAILURE'
-            'failed'
-          else
-            raise ArgumentError.new("Unknown jenkins build result: #{result}")
-          end
-        end
-      rescue RestClient::NotFound
-        'deleted'
-      end
+    # hack since cinext tags only recently included the build number
+    if @vm.url =~ /\/\d+\/$/
+      job_url = @vm.url.sub(/\d+\/$/, '') + "api/json"
+      build_url = @vm.url + "api/json"
     else
-      'adhoc'
+      job_url = @vm.url + "api/json"
+      build_url = "#{@vm.url}lastBuild/api/json"
+    end
+
+    #puts "job_url #{job_url}"
+    #puts "build_url #{build_url}"
+
+    begin
+      job_status = JSON.parse(RestClient.get(job_url, params: {tree: JOB_PARAMS.join(',')}, :user_agent => USER_AGENT))
+
+      if job_status['inQueue']
+        'queued'
+      elsif !job_status['buildable']
+        'disabled'
+      elsif job_status['color'] =~ /anime/
+        'building'
+      elsif job_status['color'] == 'notbuilt'
+        'failed' # never run before
+      else
+        # not every job has a lastBuild
+        build_status = JSON.parse(RestClient.get(build_url, params: {tree: BUILD_PARAMS.join(',')}, :user_agent => USER_AGENT))
+        result = build_status['result']
+        case result
+        when 'SUCCESS'
+          'passed'
+        when 'ABORTED'
+          'aborted'
+        when 'UNSTABLE', 'NOT_BUILT', 'FAILURE'
+          'failed'
+        else
+          raise ArgumentError.new("Unknown jenkins build result: #{result}")
+        end
+      end
+    rescue RestClient::NotFound
+      'deleted'
     end
   end
 end

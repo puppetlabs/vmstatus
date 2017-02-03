@@ -5,35 +5,43 @@ class Vmstatus::VmpoolerTask
     @host = host
   end
 
-  def run(vms, &block)
+  def run(&block)
     with_redis(@host) do |redis|
-      # which running VMs are in redis?
-      vms.each_pair do |hostname, vm|
-        url, checkout, lifetime, user, type = redis.hmget("vmpooler__vm__#{hostname}", 'tag:jenkins_build_url', 'checkout', 'lifetime', 'token:user', 'template')
+      redis.keys('vmpooler__running__*').each do |key|
+        redis.smembers(key).each do |hostname|
+          url, checkout, lifetime, user, type = redis.hmget("vmpooler__vm__#{hostname}", 'tag:jenkins_build_url', 'checkout', 'lifetime', 'token:user', 'template')
 
-        # redis returns a hash whose values are empty if the key doesn't exist,
-        # but type is required, so if it's missing, then the key didn't exist.
-        if type.nil?
-          yield nil
-        else
-          options = {
-            :type => type
+          vmpooler_status = {
+            :vmpooler => @host,
+            :url      => url,
+            :checkout => checkout,
+            :lifetime => lifetime,
+            :user     => user,
+            :type     => type
           }
 
-          if checkout
-            options.merge!(
-              {
-                :url => url,
-                :checkout => checkout,
-                :lifetime => lifetime,
-                :user => user
-              }
-            )
+          yield hostname, vmpooler_status
+        end
+      end
+
+      redis.keys('vmpooler__ready__*').each do |key|
+        redis.smembers(key).each do |hostname|
+          url, checkout, lifetime, user, type = redis.hmget("vmpooler__vm__#{hostname}", 'tag:jenkins_build_url', 'checkout', 'lifetime', 'token:user', 'template')
+
+          vmpooler_status = {
+            :vmpooler => @host,
+            :url      => url,
+            :checkout => checkout,
+            :lifetime => lifetime,
+            :user     => user,
+            :type     => type
+          }
+
+          if url || checkout || user
+            puts "Warning: ready vm #{hostname} in pooler #{@host} is in an unexpected state: #{vmpooler_status.inspect}"
           end
 
-          vm.vmpooler_status = options
-
-          yield vm
+          yield hostname, vmpooler_status
         end
       end
     end

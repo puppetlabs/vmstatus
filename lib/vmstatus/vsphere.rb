@@ -1,6 +1,5 @@
 require 'rbvmomi'
 require 'vmstatus/vm'
-require 'vmstatus/template'
 
 class Vmstatus::Vsphere
   def initialize(opts)
@@ -11,9 +10,7 @@ class Vmstatus::Vsphere
     @cluster = opts[:cluster]
   end
 
-  def inventory
-    inv = Vmstatus::Inventory.new
-
+  def run(&block)
     puts "Querying vsphere '#{@host}' for VMs in cluster '#{@cluster}' in datacenter '#{@datacenter}'"
 
     with_connection do |conn|
@@ -27,14 +24,11 @@ class Vmstatus::Vsphere
 
       template_uuids = list_template_uuids(conn, dc, %w(templates packer))
 
-      inv.template_count = template_uuids.count
-      inv.vms = list_vms(conn, clusterComputeResource.resourcePool, template_uuids)
+      list_vms(conn, clusterComputeResource.resourcePool, template_uuids, &block)
     end
-
-    inv
   end
 
-  def list_vms(conn, resourcePool, template_uuids)
+  def list_vms(conn, resourcePool, template_uuids, &block)
     # List all VirtualMachine names and powerstate that are reachable by
     # traversing (recursively) all ResourcePools associated with the cluster
     #
@@ -72,16 +66,17 @@ class Vmstatus::Vsphere
       ]
     )
 
-    vms = {}
     result = conn.propertyCollector.RetrieveProperties(:specSet => [filterSpec])
     result.map do |obj|
       # template names aren't unique, but vm names generally are
       if !template_uuids.include?(obj['config.instanceUuid'])
-        vms[obj['name']] = Vmstatus::VM.new(obj['name'], obj['config.instanceUuid'], obj['runtime.powerState'])
+        vsphere_status = {
+          :uuid => obj['config.instanceUuid'],
+          :on => obj['runtime.powerState']
+        }
+        yield obj['name'], vsphere_status
       end
     end
-
-    vms
   end
 
   def list_template_uuids(conn, dc, folders)

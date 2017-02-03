@@ -18,14 +18,17 @@ class Vmstatus::Summary
     puts format_line(results.deleted, 'deleted', :red)
     puts ""
 
+    puts "Number of VMs not associated with vSphere"
+    puts format_line(results.zombie, 'zombie', :red)
+    puts ""
+
     puts "Number of VMs not associated with any vmpooler"
-    puts format_line(results.orphaned, 'orphaned', :yellow)
+    puts format_line(results.orphaned, 'orphaned', :red)
     puts ""
 
     puts "Number of VMs not associated with any Jenkins job"
     puts format_line(results.adhoc, 'adhoc', :yellow)
     puts format_line(results.ready, 'ready', :yellow)
-    puts format_line(results.unknown, 'unknown', :yellow)
     puts ""
 
     useful_vms = results.useful_count

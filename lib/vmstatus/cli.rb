@@ -3,6 +3,7 @@ require 'ruby-progressbar'
 require 'slop'
 require 'colorize'
 require 'statsd'
+require 'concurrent'
 
 require 'vmstatus/list'
 require 'vmstatus/processor'
@@ -31,7 +32,7 @@ class Vmstatus::CLI
       o.array '--vmpooler', 'comma-separated list of vmpooler hostnames', delimiter: ',', default: ['vmpooler','vmpooler-cinext','vmpooler-dev']
       o.bool '-v', '--verbose', 'verbose mode'
       o.bool '-l', '--long', 'show long form of the job url'
-      o.string '-s', '--sort', "sort by 'host', 'checkout', 'ttl', 'user', 'job', 'status'", default: 'status'
+      o.string '-s', '--sort', "sort by 'host', 'checkout', 'ttl', 'user', 'job', 'status', 'type', 'pooler'", default: 'status'
       o.string '-p', '--publish', 'publish stats <host:port>'
       o.on '--version', 'print the version' do
         puts Vmstatus::VERSION
@@ -62,9 +63,12 @@ class Vmstatus::CLI
       exit 1
     end
 
-    on_total(1000)
+    # REMIND: filter output based on vmpooler
+    # REMIND: filter output based on status, e.g. include only zombies, exclude ready
+    on_total(8000)
     on_start
 
+    # REMIND: need to account for mac VMs in mac1 cluster
     vsphere = Vmstatus::Vsphere.new(opts)
     processor = Vmstatus::Processor.new(vsphere, opts[:vmpooler], self)
     results = processor.process
@@ -74,14 +78,14 @@ class Vmstatus::CLI
   end
 
   def on_total(total)
-    @progress.total = total
+    @progress.total = [total, @progress.progress].max
   end
 
   def on_start
     @progress.start
   end
 
-  def on_increment
+  def on_increment(time, value, reason)
     @progress.increment
   end
 

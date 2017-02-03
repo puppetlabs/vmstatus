@@ -3,9 +3,9 @@ class Vmstatus::Results
 
   def initialize(vms)
     @vms = vms
-    @state = vms.group_by { |vm| vm.job_status }
+    @state = vms.group_by { |vm| vm.status }
 
-    %w(queued building disabled passed failed aborted deleted unknown adhoc ready orphaned).each do |state|
+    %w(queued building disabled passed failed aborted deleted adhoc ready orphaned zombie).each do |state|
       @state[state] ||= []
     end
   end
@@ -50,10 +50,6 @@ class Vmstatus::Results
     @state['deleted']
   end
 
-  def unknown
-    @state['unknown']
-  end
-
   def orphaned
     @state['orphaned']
   end
@@ -64,5 +60,9 @@ class Vmstatus::Results
 
   def ready
     @state['ready']
+  end
+
+  def zombie
+    @state['zombie']
   end
 end
