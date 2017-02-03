@@ -9,7 +9,7 @@ require 'vmstatus/list'
 require 'vmstatus/processor'
 require 'vmstatus/summary'
 require 'vmstatus/version'
-require 'vmstatus/vsphere'
+require 'vmstatus/vsphere_task'
 
 class Vmstatus::CLI
   def initialize(argv)
@@ -29,7 +29,7 @@ class Vmstatus::CLI
       o.string '--password', 'vsphere password', default: ENV['LDAP_PASSWORD']
       o.string '--datacenter', 'vsphere datacenter', default: 'opdx2'
       o.string '--cluster', 'vsphere cluster', default: 'acceptance1'
-      o.array '--vmpooler', 'comma-separated list of vmpooler hostnames', delimiter: ',', default: ['vmpooler','vmpooler-cinext','vmpooler-dev']
+      o.array '--vmpoolers', 'comma-separated list of vmpooler hostnames', delimiter: ',', default: ['vmpooler','vmpooler-cinext','vmpooler-dev']
       o.bool '-v', '--verbose', 'verbose mode'
       o.bool '-l', '--long', 'show long form of the job url'
       o.string '-s', '--sort', "sort by 'host', 'checkout', 'ttl', 'user', 'job', 'status', 'type', 'pooler'", default: 'status'
@@ -69,8 +69,7 @@ class Vmstatus::CLI
     on_start
 
     # REMIND: need to account for mac VMs in mac1 cluster
-    vsphere = Vmstatus::Vsphere.new(opts)
-    processor = Vmstatus::Processor.new(vsphere, opts[:vmpooler], self)
+    processor = Vmstatus::Processor.new(opts, self)
     results = processor.process
 
     on_finish

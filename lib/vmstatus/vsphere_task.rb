@@ -1,7 +1,7 @@
 require 'rbvmomi'
 require 'vmstatus/vm'
 
-class Vmstatus::Vsphere
+class Vmstatus::VsphereTask
   def initialize(opts)
     @host = opts[:host]
     @user = opts[:user]
@@ -22,9 +22,13 @@ class Vmstatus::Vsphere
 
       raise ArgumentError.new("Cluster not found: #{@cluster}") if clusterComputeResource.nil?
 
-      template_uuids = list_template_uuids(conn, dc, %w(templates packer))
+      begin
+        template_uuids = list_template_uuids(conn, dc, %w(templates packer))
 
-      list_vms(conn, clusterComputeResource.resourcePool, template_uuids, &block)
+        list_vms(conn, clusterComputeResource.resourcePool, template_uuids, &block)
+      rescue => e
+        $stderr.puts "vsphere failed: #{e.message}"
+      end
     end
   end
 

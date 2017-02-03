@@ -5,12 +5,12 @@ require 'vmstatus/vm'
 require 'vmstatus/ping_task'
 require 'vmstatus/jenkins_task'
 require 'vmstatus/vmpooler_task'
+require 'vmstatus/vsphere_task'
 require 'vmstatus/results'
 
 class Vmstatus::Processor
-  def initialize(vsphere, vmpoolers, observer)
-    @vsphere = vsphere
-    @vmpoolers = vmpoolers
+  def initialize(opts, observer)
+    @opts = opts
     @observer = observer
     @executor = Concurrent::FixedThreadPool.new(Concurrent.processor_count * 2)
     @vms = Concurrent::Map.new
@@ -20,8 +20,8 @@ class Vmstatus::Processor
     with_futures do |futures|
       # async collect vsphere inventory
       future = Concurrent::Future.new(:executor => @executor) do
-        # REMIND change to: Vmstatus::VsphereTask.new(opts).run
-        @vsphere.run do |hostname, vsphere_status|
+        task = Vmstatus::VsphereTask.new(@opts)
+        task.run do |hostname, vsphere_status|
           @vms.compute(hostname) do |stored_value|
             vm = stored_value || Vmstatus::VM.new(hostname)
             vm.vsphere_status = vsphere_status
@@ -34,7 +34,7 @@ class Vmstatus::Processor
       future.execute
 
       # async collect vmpooler(s) inventory
-      @vmpoolers.each do |vmpooler|
+      @opts[:vmpoolers].each do |vmpooler|
         future = Concurrent::Future.new(:executor => @executor) do
           task = Vmstatus::VmpoolerTask.new(vmpooler)
           task.run do |hostname, vmpooler_status|
@@ -83,6 +83,8 @@ class Vmstatus::Processor
 
     Vmstatus::Results.new(@vms.values)
   end
+
+  private
 
   def with_futures(&block)
     futures = Concurrent::Array.new
