@@ -1,11 +1,13 @@
 class Vmstatus::Results
   attr_reader :state
 
+  STATES = %w(queued building disabled passed failed aborted deleted adhoc ready orphaned zombie)
+
   def initialize(vms)
     @vms = vms
     @state = vms.group_by { |vm| vm.status }
 
-    %w(queued building disabled passed failed aborted deleted adhoc ready orphaned zombie).each do |state|
+    STATES.each do |state|
       @state[state] ||= []
     end
   end

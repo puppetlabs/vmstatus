@@ -16,7 +16,7 @@ vmstatus correlates virtual machines in VMware vSphere against vmpooler and Jenk
 | `disabled` | VM is checked out and is associated with a disabled Jenkins job |
 | `deleted` | VM is checked out and is associated with a deleted Jenkins job |
 | `orphaned` | VM is running but there is no record in vmpooler |
-| `template` | VM template from which VMs of that type are cloned |
+| `zombie` | VM is not in vsphere, but vmpooler thinks it is |
 
 The `queued` and `building` states mean the VM is in vSphere and is associated with a currently running Jenkins job, so it is doing useful work. All other states are unuseful from a production CI perspective.
 
@@ -113,3 +113,22 @@ The `-l` or `--long` option will print the complete Jenkins job URL, as opposed 
 #### sort
 
 The `-s` or `--sort` option allows you sort by different fields. For example, to see all VMs associated with a job use `--sort job`.
+
+### Stats
+
+Vmstatus will publish the following stats. Currently only statsd is supported. Stats are published to the `vmstatus` namespace, and are grouped by the name of the `vmpooler` that the VM is associated with:
+
+| Name | Description|
+|------|------------|
+| `<pooler>.aborted` | Number of running VMs, whose Jenkins jobs were aborted |
+| `<pooler>.adhoc`   | Number of running VMs that are checked out, but are not associated with any Jenkins job |
+| `<pooler>.building` | Number of running VMs, whose Jenkins jobs are building |
+| `<pooler>.deleted` | Number of running VMs, whose Jenkins job was deleted |
+| `<pooler>.failed` | Number of running VMs, whose Jenkins jobs failed |
+| `<pooler>.disabled` | Number of running VMs, whose Jenkins job are disabled |
+| `<pooler>.passed` | Number of running VMs, whose Jenkins jobs completed successfully |
+| <pooler>.queued | Number of running VMs, whose Jenkins jobs are queued, e.g. waiting on a mesos executor |
+| <pooler>.ready | Number of running VMs, idle in vsphere and ready to be checked-out |
+| `<pooler>.zombie` | Number of VMs that the pooler thinks are running, but are not actually |
+| `none.orphaned` | Number of VMs running, but there is not record in any vmpooler |
+
