@@ -3,9 +3,13 @@ require 'ruby-progressbar'
 require 'slop'
 require 'colorize'
 require 'statsd'
+require 'concurrent'
 
+require 'vmstatus/list'
 require 'vmstatus/processor'
+require 'vmstatus/summary'
 require 'vmstatus/version'
+require 'vmstatus/vsphere_task'
 
 class Vmstatus::CLI
   def initialize(argv)
@@ -15,10 +19,20 @@ class Vmstatus::CLI
 
   def execute
     opts = Slop.parse(@argv) do |o|
-      o.string '--host', 'vmpooler redis hostname', default: 'localhost'
+      o.separator 'Commands:'
+      o.separator '     list          List status of all VMs'
+      o.separator '     summary       Summary of VM status'
+      o.separator ''
+      o.separator 'Options:'
+      o.string '--host', 'vsphere hostname', default: 'localhost'
+      o.string '--user', 'vsphere user'
+      o.string '--password', 'vsphere password', default: ENV['LDAP_PASSWORD']
+      o.string '--datacenter', 'vsphere datacenter', default: 'opdx2'
+      o.string '--cluster', 'vsphere cluster', default: 'acceptance1'
+      o.array '--vmpoolers', 'comma-separated list of vmpooler hostnames', delimiter: ',', default: ['vmpooler','vmpooler-cinext','vmpooler-dev']
       o.bool '-v', '--verbose', 'verbose mode'
       o.bool '-l', '--long', 'show long form of the job url'
-      o.string '-s', '--sort', "sort by 'host', 'checkout', 'ttl', 'user', 'job'", default: 'host'
+      o.string '-s', '--sort', "sort by 'host', 'checkout', 'ttl', 'user', 'job', 'status', 'type', 'pooler'", default: 'status'
       o.string '-p', '--publish', 'publish stats <host:port>'
       o.on '--version', 'print the version' do
         puts Vmstatus::VERSION
@@ -30,94 +44,51 @@ class Vmstatus::CLI
       end
     end
 
-    puts "Querying #{opts[:host]}"
-
-    results = process(opts)
-
-    puts ""
-    puts ""
-
-    results.state.each_pair do |name, vms|
-      puts "#{name.upcase}".ljust(16, ' ') + " (#{vms.count})".rjust(69, '-')
-      if opts.verbose?
-        vms.sort_by do |vm|
-          case opts[:sort]
-          when 'checkout'
-            vm.checkout
-          when 'job'
-            vm.job_name
-          when 'ttl'
-            vm.ttl
-          when 'user'
-            vm.user
-          else
-            vm.hostname
-          end
-        end.each do |vm|
-          color = if vm.ttl <= 0
-                    :red
-                  elsif vm.url.nil?
-                    :yellow
-                  else
-                    :cyan
-                  end
-
-          checkout = vm.checkout || (' ' * 25)
-          left = ("#{vm.hostname} #{checkout} " + ("%10.2fh" % vm.ttl) + " #{vm.user}").ljust(20, ' ')
-
-          right = opts.long? ? vm.url : vm.job_name
-
-          puts "#{left} #{right}".colorize(color)
-        end
-      end
-      puts ""
+    if opts[:user].nil?
+      raise ArgumentError.new("Specify the vsphere (LDAP) username, e.g. 'user@puppet.com'")
+    elsif opts[:password].nil?
+      raise ArgumentError.new("Specify the vsphere (LDAP) password or set ENV['LDAP_PASSWORD']")
     end
 
-    if opts[:publish]
-      begin
-        host, port = opts[:publish].split(':')
-        statsd = Statsd.new(host, port)
-        results.state.each_pair do |name, vms|
-          statsd.gauge("vmstatus.#{name}", vms.count)
-        end
-      rescue ArgumentError => e
-        puts "Invalid publish host:port #{opts[:publish]}: #{e.message}"
-        exit 1
-      end
+    formatter = nil
+    command = opts.arguments.first
+    case command
+    when 'list'
+      formatter = Vmstatus::List.new(opts)
+    when 'summary'
+      formatter = Vmstatus::Summary.new(opts)
+    else
+      puts "Unknown command '#{command}'\n" if command
+      puts opts.options
+      exit 1
     end
-  end
 
-  def process(opts)
-    with_redis(opts) do |redis|
-      processor = Vmstatus::Processor.new(self)
-      processor.process(redis)
-    end
+    # REMIND: filter output based on vmpooler
+    # REMIND: filter output based on status, e.g. include only zombies, exclude ready
+    on_total(8000)
+    on_start
+
+    # REMIND: need to account for mac VMs in mac1 cluster
+    processor = Vmstatus::Processor.new(opts, self)
+    results = processor.process
+
+    on_finish
+    formatter.output(results)
   end
 
   def on_total(total)
-    @progress.total = total
+    @progress.total = [total, @progress.progress].max
   end
 
   def on_start
     @progress.start
   end
 
-  def on_progress(current_progress)
+  def on_increment(time, value, reason)
     @progress.increment
   end
 
   def on_finish
     @progress.finish
-  end
-
-  private
-
-  def with_redis(opts, &block)
-    redis = Redis.new(:host => opts[:host])
-    begin
-      yield redis
-    ensure
-      redis.close
-    end
   end
 end

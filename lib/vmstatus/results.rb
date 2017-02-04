@@ -1,55 +1,70 @@
 class Vmstatus::Results
   attr_reader :state
 
-  def initialize(vms)
-    @state = {
-      :ready => [],
-      :queued => [],
-      :ok => [],
-      :missing => [],
-      :disabled => [],
-      :passed => [],
-      :zombie => [],
-      :failed => [],
-      :unknown_running => [],
-      :unknown_dead => [],
-    }
+  STATES = %w(queued building disabled passed failed aborted deleted adhoc ready orphaned zombie)
 
-    vms.each do |vm|
-      case vm.status
-      when 'queued'
-        if vm.running?
-          state[:ready] << vm
-        else
-          state[:queued] << vm
-        end
-      when 'building'
-        if vm.running?
-          state[:ok] << vm
-        else
-          state[:missing] << vm
-        end
-      when 'disabled'
-        state[:disabled] << vm
-      when 'passed'
-        if vm.running?
-          state[:passed] << vm
-        else
-          state[:zombie] << vm
-        end
-      when 'failed'
-        if vm.running?
-          state[:failed] << vm
-        else
-          state[:zombie] << vm
-        end
-      else
-        if vm.running?
-          state[:unknown_running] << vm
-        else
-          state[:unknown_dead] << vm
-        end
-      end
+  def initialize(vms)
+    @vms = vms
+    @state = vms.group_by { |vm| vm.status }
+
+    STATES.each do |state|
+      @state[state] ||= []
     end
+  end
+
+  def vms
+    @vms
+  end
+
+  def useful_count
+    queued.count + building.count
+  end
+
+  def total_count
+    @state.values.inject(0) { |sum, vms| sum + vms.count }
+  end
+
+  def queued
+    @state['queued']
+  end
+
+  def building
+    @state['building']
+  end
+
+  def disabled
+    @state['disabled']
+  end
+
+  def passed
+    @state['passed']
+  end
+
+  def failed
+    @state['failed']
+  end
+
+  def aborted
+    @state['aborted']
+  end
+
+  def deleted
+    @state['deleted']
+  end
+
+  def orphaned
+    @state['orphaned']
+  end
+
+  def adhoc
+    @state['adhoc']
+  end
+
+  def ready
+    @state['ready']
+  end
+
+  def zombie
+    @state['zombie']
   end
 end
