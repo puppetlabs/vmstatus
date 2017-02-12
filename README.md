@@ -127,8 +127,8 @@ Vmstatus will publish the following stats. Currently only statsd is supported. S
 | `<pooler>.failed` | Number of running VMs, whose Jenkins jobs failed |
 | `<pooler>.disabled` | Number of running VMs, whose Jenkins job are disabled |
 | `<pooler>.passed` | Number of running VMs, whose Jenkins jobs completed successfully |
-| <pooler>.queued | Number of running VMs, whose Jenkins jobs are queued, e.g. waiting on a mesos executor |
-| <pooler>.ready | Number of running VMs, idle in vsphere and ready to be checked-out |
+| `<pooler>.queued` | Number of running VMs, whose Jenkins jobs are queued, e.g. waiting on a mesos executor |
+| `<pooler>.ready` | Number of running VMs, idle in vsphere and ready to be checked-out |
 | `<pooler>.zombie` | Number of VMs that the pooler thinks are running, but are not actually |
 | `none.orphaned` | Number of VMs running, but there is not record in any vmpooler |
 
