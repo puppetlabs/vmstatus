@@ -73,12 +73,17 @@ class Vmstatus::VsphereTask
 
     result = conn.propertyCollector.RetrieveProperties(:specSet => [filterSpec])
     result.map do |obj|
-      # template names aren't unique, but vm names generally are
       if !template_uuids.include?(obj['config.instanceUuid'])
+        if obj['runtime.host'].nil? || obj['runtime.host'].name.nil?
+          cluster_host = "N/A"
+        else
+          cluster_host = obj['runtime.host'].name
+        end
+        # template names aren't unique, but vm names generally are
         vsphere_status = {
           :uuid => obj['config.instanceUuid'],
           :on => obj['runtime.powerState'],
-          :clusterhost => obj['runtime.host'].name
+          :clusterhost => cluster_host
         }
         yield obj['name'], vsphere_status
       end
