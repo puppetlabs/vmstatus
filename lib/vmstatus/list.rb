@@ -63,15 +63,17 @@ class Vmstatus::List
       puts "#{left} #{right}".colorize(color)
 
       # count for each cluster host
-      if !countcluster[clusterhost]
-        countcluster[clusterhost] = 1
-      else
-        countcluster[clusterhost] = countcluster[clusterhost] + 1
+      if vm.on? == "poweredOn" # only count when VM is on
+        if !countcluster[clusterhost]
+          countcluster[clusterhost] = 1
+        else
+          countcluster[clusterhost] = countcluster[clusterhost] + 1
+        end
       end
     end
 
     puts ""
-    puts "Cluster host count of VM"
+    puts "Cluster host count of VM that are powered on"
     countcluster.sort_by {|host, count| host}.each do |host, count|
       puts "#{host} #{count}"
     end
