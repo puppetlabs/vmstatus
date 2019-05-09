@@ -21,6 +21,7 @@ class Vmstatus::VmpoolerTask
             :type     => type
           }
 
+          # puts "#{hostname}, #{vmpooler_status}"
           yield hostname, vmpooler_status
         end
       end
@@ -52,7 +53,12 @@ class Vmstatus::VmpoolerTask
 
   def with_redis(host, auth)
     redis = Redis.new(:host => host)
-    redis.auth(auth) unless auth.nil?
+    if auth.nil?
+      puts "Redis connecting to #{host} without AUTH"
+    else
+      puts "Redis connecting to #{host} with auth set"
+      redis.auth(auth)
+    end
     begin
       yield redis
     ensure

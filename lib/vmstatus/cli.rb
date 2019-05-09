@@ -30,7 +30,7 @@ class Vmstatus::CLI
       o.array '--datacenter', 'comma-separated list of vsphere datacenter', delimiter: ',', default: ['opdx2']
       o.array '--cluster', 'comma-separated list of vsphere cluster', delimiter: ',', default: ['acceptance1']
       o.array '--vmpoolers', 'comma-separated list of vmpooler redis hostnames', delimiter: ',', default: ['vmpooler','vmpooler-cinext','vmpooler-dev']
-      o.string '--auth', 'the redis AUTH password'
+      o.array '--auth', 'comma-separated list of redis AUTH password'
       o.bool '-v', '--verbose', 'verbose mode'
       o.bool '-l', '--long', 'show long form of the job url'
       o.string '-s', '--sort', "sort by 'host', 'checkout', 'ttl', 'user', 'job', 'status', 'type', 'pooler'", default: 'status'
@@ -53,6 +53,10 @@ class Vmstatus::CLI
 
     if opts[:host].length != opts[:datacenter].length or opts[:datacenter].length != opts[:cluster].length
       raise ArgumentError.new("When specifying #{opts[:host].length} hosts, you have to also specify the respective --datacenter and --cluster")
+    end
+
+    if !opts[:auth].nil? && opts[:vmpoolers].length != opts[:auth].length
+      raise ArgumentError.new("When specifying #{opts[:vmpoolers].length} vmpoolers redis, you have to also specify the respective --auth for each")
     end
 
     formatter = nil
