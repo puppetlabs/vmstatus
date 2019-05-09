@@ -1,12 +1,13 @@
 require 'redis'
 
 class Vmstatus::VmpoolerTask
-  def initialize(host)
-    @host = host
+  def initialize(opts)
+    @host = opts[:host]
+    @auth = opts[:auth]
   end
 
   def run(&block)
-    with_redis(@host) do |redis|
+    with_redis(@host, @auth) do |redis|
       redis.keys('vmpooler__running__*').each do |key|
         redis.smembers(key).each do |hostname|
           url, checkout, lifetime, user, type = redis.hmget("vmpooler__vm__#{hostname}", 'tag:jenkins_build_url', 'checkout', 'lifetime', 'token:user', 'template')
@@ -49,8 +50,9 @@ class Vmstatus::VmpoolerTask
 
   private
 
-  def with_redis(host)
+  def with_redis(host, auth)
     redis = Redis.new(:host => host)
+    redis.auth(auth) unless auth.nil?
     begin
       yield redis
     ensure

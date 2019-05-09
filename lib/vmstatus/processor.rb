@@ -46,6 +46,10 @@ class Vmstatus::Processor
 
       # async collect vmpooler(s) inventory
       @opts[:vmpoolers].each do |vmpooler|
+        vmpooler_config = {
+            :vmpooler => vmpooler,
+            :auth => @opts[:auth]
+        }
         future = Concurrent::Future.new(:executor => @executor) do
           task = Vmstatus::VmpoolerTask.new(vmpooler)
           task.run do |hostname, vmpooler_status|

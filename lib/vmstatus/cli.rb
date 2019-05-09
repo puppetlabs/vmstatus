@@ -29,7 +29,8 @@ class Vmstatus::CLI
       o.string '--password', 'vsphere password', default: ENV['LDAP_PASSWORD']
       o.array '--datacenter', 'comma-separated list of vsphere datacenter', delimiter: ',', default: ['opdx2']
       o.array '--cluster', 'comma-separated list of vsphere cluster', delimiter: ',', default: ['acceptance1']
-      o.array '--vmpoolers', 'comma-separated list of vmpooler hostnames', delimiter: ',', default: ['vmpooler','vmpooler-cinext','vmpooler-dev']
+      o.array '--vmpoolers', 'comma-separated list of vmpooler redis hostnames', delimiter: ',', default: ['vmpooler','vmpooler-cinext','vmpooler-dev']
+      o.string '--auth', 'the redis AUTH password'
       o.bool '-v', '--verbose', 'verbose mode'
       o.bool '-l', '--long', 'show long form of the job url'
       o.string '-s', '--sort', "sort by 'host', 'checkout', 'ttl', 'user', 'job', 'status', 'type', 'pooler'", default: 'status'
