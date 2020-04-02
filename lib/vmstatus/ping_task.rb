@@ -2,7 +2,12 @@ require 'socket'
 
 class Vmstatus::PingTask
   def initialize(host, port)
-    @host = host
+    domain_name = "delivery.puppetlabs.net"
+    if host.include?(domain_name)
+      @host = host
+    else
+      @host = "#{host}.#{domain_name}"
+    end
     @port = port
   end
 

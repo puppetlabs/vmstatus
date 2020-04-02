@@ -2,7 +2,7 @@ require 'date'
 require 'time'
 
 class Vmstatus::VM
-  attr_reader :hostname, :uuid, :url, :type, :user, :checkout, :ttl, :status, :vmpooler, :clusterhost
+  attr_reader :hostname, :uuid, :url, :type, :user, :checkout, :ttl, :status, :vmpooler, :clusterhost, :vmip, :dnsip
 
   def initialize(hostname)
     @hostname = hostname
@@ -60,6 +60,8 @@ class Vmstatus::VM
     @on   = status[:on]
     @uuid = status[:uuid]
     @clusterhost = status[:clusterhost]
+    @vmip = status[:vmip]
+    @dnsip = status[:dnsip]
   end
 
   def vmpooler_status=(status)
