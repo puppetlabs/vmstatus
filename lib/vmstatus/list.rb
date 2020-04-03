@@ -41,6 +41,9 @@ class Vmstatus::List
       hostname = vm.hostname.length > 15 ? (vm.hostname[0..12] + "...") : vm.hostname
       vmip = vm.vmip ? vm.vmip : "N/A"
       dnsip = vm.dnsip ? vm.dnsip: "N/A"
+      if dnsip != vmip
+        dnsip = "*#{dnsip}"
+      end
       clusterhost = vm.clusterhost ? vm.clusterhost : "N/A"
       type = vm.type ? (vm.type.length > 22 ? (vm.type[0..18] + "...") : vm.type) : 'unknown'
       # maps the vmpooler host to CI type, redis used to run on the same host as the vmpooler application.

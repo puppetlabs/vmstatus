@@ -88,7 +88,19 @@ class Vmstatus::Summary
 
             arr = vmpooler2vms[vmpooler]
             count = arr.nil? ? 0 : arr.count
-            statsd.gauge("#{vmpooler}.#{state}", count)
+            pooler_short = case vmpooler
+                     when 'vmpooler'
+                       'ci-old'
+                     when 'vmpooler-cinext'
+                       'ci-next'
+                     when 'vmpooler-dev'
+                       'ci-dev'
+                     when 'vmpooler-redis-prod-2.delivery.puppetlabs.net'
+                       'ci-next'
+                     else
+                       vm.vmpooler ? vm.vmpooler : 'none'
+                     end
+            statsd.gauge("#{pooler_short}.#{state}", count)
           end
         end
 
