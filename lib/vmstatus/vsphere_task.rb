@@ -68,7 +68,7 @@ class Vmstatus::VsphereTask
         }
       ],
       propSet: [
-        { type: 'VirtualMachine', pathSet: %w(name config.instanceUuid runtime.powerState runtime.host guest.ipAddress) }
+        { type: 'VirtualMachine', pathSet: %w(name config.instanceUuid runtime.powerState runtime.host guest.ipAddress config.annotation) }
       ]
     )
 
@@ -107,12 +107,23 @@ class Vmstatus::VsphereTask
           end
         end
 
+        #process annotation
+        # {name, created_by, base_template, creation_timestamp}
+        if obj['config.annotation'].nil?
+          annotation = "N/A"
+        else
+          annotation = JSON.parse(obj['config.annotation'])
+        end
+
+
         vsphere_status = {
           :uuid => obj['config.instanceUuid'],
           :on => on,
           :clusterhost => cluster_host,
           :vmip => vmip,
-          :dnsip => dnsip
+          :dnsip => dnsip,
+          :created_by => annotation['created_by'],
+          :creation_timestamp => annotation['creation_timestamp']
         }
 
         # template names aren't unique, but vm names generally are
