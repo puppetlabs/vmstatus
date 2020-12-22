@@ -51,6 +51,23 @@ class Vmstatus::Summary
       end
     end
 
+    puts "Check VM ip is equal to DNS ip"
+    count_invalid = 0
+    display_errors = []
+    results.vms.each do |vm|
+      if vm.on? == "poweredOn" # only count when VM is on
+        if vm.vmip != vm.dnsip
+          display_errors << "Error: #{vm.hostname} discrepancy #{vm.vmip} != #{vm.dnsip}"
+          count_invalid = count_invalid+1
+        end
+      end
+    end
+    puts "  Found #{count_invalid} invalid DNS entries:"
+    display_errors.each do |line|
+      puts line
+    end
+    puts ""
+
     puts "Cluster host count of VM that are powered on"
     countcluster.sort_by {|host, count| host}.each do |host, count|
       puts "#{host} #{count}"
@@ -71,7 +88,19 @@ class Vmstatus::Summary
 
             arr = vmpooler2vms[vmpooler]
             count = arr.nil? ? 0 : arr.count
-            statsd.gauge("#{vmpooler}.#{state}", count)
+            pooler_short = case vmpooler
+                     when 'vmpooler'
+                       'ci-old'
+                     when 'vmpooler-cinext'
+                       'ci-next'
+                     when 'vmpooler-dev'
+                       'ci-dev'
+                     when 'vmpooler-redis-prod-2.delivery.puppetlabs.net'
+                       'ci-next'
+                     else
+                       vm.vmpooler ? vm.vmpooler : 'none'
+                     end
+            statsd.gauge("#{pooler_short}.#{state}", count)
           end
         end
 

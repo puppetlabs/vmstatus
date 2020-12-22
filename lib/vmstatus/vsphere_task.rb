@@ -1,5 +1,6 @@
 require 'rbvmomi'
 require 'vmstatus/vm'
+require 'resolv'
 
 class Vmstatus::VsphereTask
   def initialize(opts)
@@ -67,7 +68,7 @@ class Vmstatus::VsphereTask
         }
       ],
       propSet: [
-        { type: 'VirtualMachine', pathSet: %w(name config.instanceUuid runtime.powerState runtime.host) }
+        { type: 'VirtualMachine', pathSet: %w(name config.instanceUuid runtime.powerState runtime.host guest.ipAddress config.annotation) }
       ]
     )
 
@@ -79,16 +80,74 @@ class Vmstatus::VsphereTask
         else
           cluster_host = obj['runtime.host'].name
         end
-        # template names aren't unique, but vm names generally are
+
+        on = obj['runtime.powerState']
+        if on.nil?
+          on = "N/A"
+        elsif on == "poweredOff"
+          on = "off"
+        elsif on == "poweredOn"
+          on = "on"
+        else
+          on = "wha"
+        end
+
+        if obj['guest.ipAddress'].nil?
+          vmip = "N/A"
+        else
+          vmip = obj['guest.ipAddress']
+        end
+
+        domain_name = "delivery.puppetlabs.net"
+        if obj['name'].include?(domain_name)
+          fqdn = obj['name']
+        else
+          fqdn = "#{obj['name']}.#{domain_name}"
+        end
+
+        if on.nil?
+          dnsip = "N/A"
+        else
+          begin
+            dnsip = Resolv.getaddress(fqdn)
+          rescue
+            puts "Error trying to DNS resolve fqdn #{fqdn}"
+            dnsip = "N/A"
+          end
+        end
+
+        #process annotation
+        # {name, created_by, base_template, creation_timestamp}
+        if obj['config.annotation'].nil? || !valid_json?(obj['config.annotation'])
+          annotation = "N/A"
+        else
+          annotation = JSON.parse(obj['config.annotation'])
+        end
+
+
         vsphere_status = {
           :uuid => obj['config.instanceUuid'],
-          :on => obj['runtime.powerState'],
-          :clusterhost => cluster_host
+          :on => on,
+          :clusterhost => cluster_host,
+          :vmip => vmip,
+          :dnsip => dnsip,
+          :created_by => annotation['created_by'],
+          :creation_timestamp => annotation['creation_timestamp']
         }
+
+        # template names aren't unique, but vm names generally are
         yield obj['name'], vsphere_status
       end
     end
   end
+
+  def valid_json?(json)
+    JSON.parse(json)
+    return true
+  rescue JSON::ParserError => e
+    return false
+  end
+
 
   def list_template_uuids(conn, dc, folders)
     template_uuids = Set.new

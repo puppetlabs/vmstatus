@@ -6,7 +6,8 @@ class Vmstatus::List
   def output(results)
     puts ""
 
-    puts "Hostname".ljust(16) + "Cluster Host".ljust(45) + "Type".ljust(23) + "Pooler".ljust(8) + "Status".ljust(10) + "Running".ljust(9) + "Checkout Time".ljust(25) + "TTL".rjust(12) + " User".ljust(22) + "Jenkins Job"
+    puts "Hostname".ljust(25) + "IP(vm)".ljust(16) + "IP(dns)".ljust(16) + "Cluster Host".ljust(45) + "Type".ljust(23) + "Pooler".ljust(8) + "Status".ljust(10) + "Running".ljust(9) +
+             "Creation Time Vcenter".ljust(25) + "Checkout Time".ljust(25) + "TTL".rjust(12) + " User".ljust(22) + "Jenkins Job"
 
     countcluster = Hash.new
     results.vms.sort_by do |vm|
@@ -38,14 +39,15 @@ class Vmstatus::List
                 :red
               end
 
-      hostname = vm.hostname.length > 15 ? (vm.hostname[0..12] + "...") : vm.hostname
-      on = vm.on? ? 'on' : 'off'
-      running = vm.running? ? '*' : '!'
-
-      checkout = vm.checkout ? vm.checkout.to_s : ' '
-      ttl = vm.ttl ? ("%8.2fh" % vm.ttl) : 'never'
-      user = vm.user ? vm.user : ' '
+      hostname = vm.hostname.length > 24 ? (vm.hostname[0..21] + "...") : vm.hostname
+      vmip = vm.vmip ? vm.vmip : "N/A"
+      dnsip = vm.dnsip ? vm.dnsip: "N/A"
+      if dnsip != vmip
+        dnsip = "*#{dnsip}"
+      end
+      clusterhost = vm.clusterhost ? vm.clusterhost : "N/A"
       type = vm.type ? (vm.type.length > 22 ? (vm.type[0..18] + "...") : vm.type) : 'unknown'
+      # maps the vmpooler host to CI type, redis used to run on the same host as the vmpooler application.
       pooler = case vm.vmpooler
                when 'vmpooler'
                  'ci-old'
@@ -53,11 +55,20 @@ class Vmstatus::List
                  'ci-next'
                when 'vmpooler-dev'
                  'ci-dev'
+               when 'vmpooler-redis-prod-2.delivery.puppetlabs.net'
+                 'ci-next'
                else
-                 vm.vmpooler || 'none'
+                 vm.vmpooler ? vm.vmpooler[0..3] + "..." : 'none'
                end
-      clusterhost = vm.clusterhost ? vm.clusterhost : "N/A"
-      left = hostname.ljust(16) + clusterhost.ljust(45) + type.ljust(23) + pooler.ljust(8) + vm.status.ljust(10) + on.rjust(3) + "/" + running.ljust(5) + checkout.ljust(25) + ttl.rjust(12) + " " + user.ljust(20)
+      on = vm.on? ? vm.on? : 'N/A'
+      running = vm.running? ? '*' : '!'
+      creation_timestamp = vm.creation_timestamp ? vm.creation_timestamp : ' '
+      checkout = vm.checkout ? vm.checkout.to_s : ' '
+      ttl = vm.ttl ? ("%8.2fh" % vm.ttl) : 'never'
+      user = vm.user ? vm.user : ' '
+
+      left = hostname.ljust(25) + vmip.ljust(16) + dnsip.ljust(16) + clusterhost.ljust(45) + type.ljust(23) + pooler.ljust(8) + vm.status.ljust(10) + on.rjust(3) + "/" + running.ljust(5) +
+          creation_timestamp.ljust(25) + checkout.ljust(25) + ttl.rjust(12) + " " + user.ljust(20)
       right = @opts.long? ? vm.url : vm.job_name
 
       puts "#{left} #{right}".colorize(color)
