@@ -82,6 +82,15 @@ class Vmstatus::VsphereTask
         end
 
         on = obj['runtime.powerState']
+        if on.nil?
+          on = "N/A"
+        elsif on == "poweredOff"
+          on = "off"
+        elsif on == "poweredOn"
+          on = "on"
+        else
+          on = "wha"
+        end
 
         if obj['guest.ipAddress'].nil?
           vmip = "N/A"
@@ -109,7 +118,7 @@ class Vmstatus::VsphereTask
 
         #process annotation
         # {name, created_by, base_template, creation_timestamp}
-        if obj['config.annotation'].nil?
+        if obj['config.annotation'].nil? || !valid_json?(obj['config.annotation'])
           annotation = "N/A"
         else
           annotation = JSON.parse(obj['config.annotation'])
@@ -131,6 +140,14 @@ class Vmstatus::VsphereTask
       end
     end
   end
+
+  def valid_json?(json)
+    JSON.parse(json)
+    return true
+  rescue JSON::ParserError => e
+    return false
+  end
+
 
   def list_template_uuids(conn, dc, folders)
     template_uuids = Set.new
